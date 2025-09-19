@@ -1,0 +1,34 @@
+# Freshfield ERPNext Project Rules
+
+## Mission & Scope
+**Goal:** Run ERPNext v15 (stable) in parallel with current tools, validate inventory and subcontracting flows, then gate into integrations.
+
+**Phase 1 Scope:** Vanilla ERPNext setup for Canada/PST with subcontracting focus
+- Locale: Canada, TZ: PST
+- Currencies: CAD (base), transact in CAD/USD/GBP/EUR
+- Manufacturing: Subcontracting only (contract manufacturers)
+- No code edits, no SQL, no destructive operations
+
+## Core Guardrails
+1. **Stay within Phase 1 scope**; ask before expanding
+2. **Cite official ERPNext docs** by title/section for non-trivial steps
+3. **No code edits**, no SQL, no destructive ops
+4. **Backup before risky changes**; confirm before stock/ledger postings
+5. **Update STATE_TRACKER.md and CHANGELOG.md** after each task
+
+## One-Task-at-a-Time Workflow
+1. **Single Focus**: Work on one task completely before starting another
+2. **State Tracking**: Update `STATE_TRACKER.md` after each completed task
+3. **Changelog**: Document changes in `CHANGELOG.md`
+4. **QA Check**: Verify task completion meets acceptance criteria
+5. **Backup**: Ensure data safety before any risky operations
+
+## Key References
+- **AI Rules & Guardrails**: See `AI_RULES_GUARDRAILS.md`
+- **Build Specification**: See `MASTER_BUILD_SPEC.md`
+- **Phase Overview**: See `PHASES_OVERVIEW.md`
+
+## Quality Standards
+- All tasks must pass 100% QA testing with no exceptions
+- Comprehensive testing after each development phase
+- Maintain parallel run validation throughout Phase 1
