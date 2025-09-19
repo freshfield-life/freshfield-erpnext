@@ -1,0 +1,42 @@
+name: terraform-ci
+on:
+  pull_request:
+    paths:
+      - 'infra/terraform/**'
+      - '.github/workflows/terraform-ci.yml'
+jobs:
+  fmt-validate-plan:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        env: [dev, staging, prod]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Google Auth (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_TF_SA }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Terraform fmt
+        working-directory: infra/terraform/environments/${{ matrix.env }}
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init
+        working-directory: infra/terraform/environments/${{ matrix.env }}
+        run: terraform init -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" -backend-config="prefix=env/${{ matrix.env }}"
+
+      - name: Terraform validate
+        working-directory: infra/terraform/environments/${{ matrix.env }}
+        run: terraform validate
+
+      - name: Terraform plan
+        working-directory: infra/terraform/environments/${{ matrix.env }}
+        run: terraform plan -var "project_id=${{ secrets.GCP_PROJECT_ID }}" -input=false

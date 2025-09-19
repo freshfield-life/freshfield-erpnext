@@ -1,0 +1,13 @@
+name: markdown-lint
+on:
+  pull_request:
+    paths: ['**/*.md']
+jobs:
+  mdl:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DavidAnson/markdownlint-cli2-action@v16
+        with:
+          globs: '**/*.md'
+        continue-on-error: true
