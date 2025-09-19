@@ -1,0 +1,11 @@
+# secrets / noisy artifacts
+.env
+.env.*
+**/node_modules/**
+**/.venv/**
+**/__pycache__/**
+**/*.zip
+**/*.sql
+**/backups/**
+**/.DS_Store
+infra/terraform/.terraform/**
