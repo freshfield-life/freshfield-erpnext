@@ -1,0 +1,118 @@
+name: Backup ERPNext Data
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2 AM UTC
+  workflow_dispatch:  # Manual trigger
+
+env:
+  GCP_PROJECT_ID: freshfield-ai-ops-dev
+
+jobs:
+  backup-dev:
+    runs-on: ubuntu-latest
+    environment: development
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+    
+    - name: Backup Dev Database
+      run: |
+        DEV_IP=$(cd infra/terraform/environments/dev && terraform output -raw ip_address)
+        BACKUP_BUCKET=$(cd infra/terraform/environments/dev && terraform output -raw backup_bucket)
+        
+        # Setup SSH key
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ssh_key
+        chmod 600 ssh_key
+        
+        # Create backup
+        TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+        ssh -i ssh_key ubuntu@$DEV_IP "cd /opt/erpnext && docker exec erpnext-db-1 mysqldump -u root -padmin erpnext > backup_${TIMESTAMP}.sql"
+        
+        # Upload to GCS
+        ssh -i ssh_key ubuntu@$DEV_IP "cd /opt/erpnext && gsutil cp backup_${TIMESTAMP}.sql gs://$BACKUP_BUCKET/dev/"
+        
+        # Cleanup local backup
+        ssh -i ssh_key ubuntu@$DEV_IP "cd /opt/erpnext && rm backup_${TIMESTAMP}.sql"
+        
+        # Cleanup
+        rm ssh_key
+        
+        echo "✅ Dev backup completed: backup_${TIMESTAMP}.sql"
+
+  backup-staging:
+    runs-on: ubuntu-latest
+    environment: staging
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+    
+    - name: Backup Staging Database
+      run: |
+        STAGING_IP=$(cd infra/terraform/environments/staging && terraform output -raw ip_address)
+        BACKUP_BUCKET=$(cd infra/terraform/environments/staging && terraform output -raw backup_bucket)
+        
+        # Setup SSH key
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ssh_key
+        chmod 600 ssh_key
+        
+        # Create backup
+        TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+        ssh -i ssh_key ubuntu@$STAGING_IP "cd /opt/erpnext && docker exec erpnext-db-1 mysqldump -u root -padmin erpnext > backup_${TIMESTAMP}.sql"
+        
+        # Upload to GCS
+        ssh -i ssh_key ubuntu@$STAGING_IP "cd /opt/erpnext && gsutil cp backup_${TIMESTAMP}.sql gs://$BACKUP_BUCKET/staging/"
+        
+        # Cleanup local backup
+        ssh -i ssh_key ubuntu@$STAGING_IP "cd /opt/erpnext && rm backup_${TIMESTAMP}.sql"
+        
+        # Cleanup
+        rm ssh_key
+        
+        echo "✅ Staging backup completed: backup_${TIMESTAMP}.sql"
+
+  backup-prod:
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+    
+    - name: Backup Production Database
+      run: |
+        PROD_IP=$(cd infra/terraform/environments/prod && terraform output -raw ip_address)
+        BACKUP_BUCKET=$(cd infra/terraform/environments/prod && terraform output -raw backup_bucket)
+        
+        # Setup SSH key
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ssh_key
+        chmod 600 ssh_key
+        
+        # Create backup
+        TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+        ssh -i ssh_key ubuntu@$PROD_IP "cd /opt/erpnext && docker exec erpnext-db-1 mysqldump -u root -padmin erpnext > backup_${TIMESTAMP}.sql"
+        
+        # Upload to GCS
+        ssh -i ssh_key ubuntu@$PROD_IP "cd /opt/erpnext && gsutil cp backup_${TIMESTAMP}.sql gs://$BACKUP_BUCKET/prod/"
+        
+        # Cleanup local backup
+        ssh -i ssh_key ubuntu@$PROD_IP "cd /opt/erpnext && rm backup_${TIMESTAMP}.sql"
+        
+        # Cleanup
+        rm ssh_key
+        
+        echo "✅ Production backup completed: backup_${TIMESTAMP}.sql"

@@ -1,0 +1,1 @@
+{"Modules":[{"Key":"","Source":"","Dir":"."},{"Key":"backups","Source":"../../modules/backup_bucket","Dir":"../../modules/backup_bucket"},{"Key":"host","Source":"../../modules/gce_docker_host","Dir":"../../modules/gce_docker_host"},{"Key":"network","Source":"../../modules/network","Dir":"../../modules/network"}]}

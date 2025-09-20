@@ -1,0 +1,9 @@
+project_id         = "freshfield-ai-ops-dev"
+region             = "us-west1"
+zone               = "us-west1-c"
+network_name       = "erp-vpc"
+subnet_cidr        = "10.10.1.0/24"
+instance_type      = "e2-standard-4"
+disk_size_gb       = 150
+create_static_ip   = true
+backup_bucket_name = "freshfield-erpnext-staging-backups"

@@ -1,0 +1,17 @@
+{
+  "name": "freshfield-erpnext",
+  "version": "1.0.0",
+  "description": "This repo is **Cursor‑ready** and contains **Phase 1 (vanilla)** and **Phase 2+ (AI/RAG/Agents)** docs.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "frappe-js-sdk": "github:The-Commit-Company/frappe-js-sdk",
+    "frappe-react-sdk": "github:The-Commit-Company/frappe-react-sdk"
+  }
+}

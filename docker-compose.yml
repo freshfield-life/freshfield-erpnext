@@ -1,0 +1,82 @@
+services:
+  erpnext:
+    image: frappe/erpnext:v15.0.0
+    platform: linux/amd64
+    container_name: freshfield-erpnext
+    restart: unless-stopped
+    environment:
+      - MARIADB_ROOT_PASSWORD=root_password
+      - MARIADB_HOST=mariadb
+      - MARIADB_PORT=3306
+      - MARIADB_DATABASE=erpnext
+      - MARIADB_USER=erpnext
+      - MARIADB_PASSWORD=erpnext_password
+      - REDIS_CACHE=redis-cache:6379
+      - REDIS_QUEUE=redis-queue:6379
+      - REDIS_SOCKETIO=redis-socketio:6379
+      - SOCKETIO_PORT=9000
+      - AUTO_MIGRATE=1
+      - WEB_PORT=8000
+      - SITES=erpnext.localhost
+      - DB_ROOT_USER=root
+      - DB_ROOT_PASSWORD=root_password
+      - ADMIN_PASSWORD=admin123
+      - INSTALL_APPS=erpnext
+    volumes:
+      - erpnext_sites:/home/frappe/frappe-bench/sites
+      - erpnext_logs:/home/frappe/frappe-bench/logs
+    ports:
+      - "8000:8000"
+      - "9000:9000"
+    depends_on:
+      - mariadb
+      - redis-cache
+      - redis-queue
+      - redis-socketio
+    networks:
+      - erpnext-network
+
+  mariadb:
+    image: mariadb:10.6
+    platform: linux/amd64
+    container_name: freshfield-mariadb
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_password
+      - MYSQL_DATABASE=erpnext
+      - MYSQL_USER=erpnext
+      - MYSQL_PASSWORD=erpnext_password
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    networks:
+      - erpnext-network
+
+  redis-cache:
+    image: redis:6.2-alpine
+    container_name: freshfield-redis-cache
+    restart: unless-stopped
+    networks:
+      - erpnext-network
+
+  redis-queue:
+    image: redis:6.2-alpine
+    container_name: freshfield-redis-queue
+    restart: unless-stopped
+    networks:
+      - erpnext-network
+
+  redis-socketio:
+    image: redis:6.2-alpine
+    container_name: freshfield-redis-socketio
+    restart: unless-stopped
+    networks:
+      - erpnext-network
+
+volumes:
+  erpnext_sites:
+  erpnext_logs:
+  mariadb_data:
+
+networks:
+  erpnext-network:
+    driver: bridge

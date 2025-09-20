@@ -1,10 +1,11 @@
-module "network" {
-  source       = "../../modules/network"
-  network_name = var.network_name
-  region       = var.region
-  subnet_cidr  = var.subnet_cidr
-  target_tags  = ["erp-host"]
-  source_ranges = ["0.0.0.0/0"] # TODO: restrict SSH ingress to your IP
+# Use existing VPC from dev environment
+data "google_compute_network" "existing_vpc" {
+  name = "erp-vpc"
+}
+
+data "google_compute_subnetwork" "existing_subnet" {
+  name   = "erp-vpc-subnet"
+  region = var.region
 }
 
 module "backups" {
@@ -20,7 +21,7 @@ module "host" {
   env               = "prod"
   region            = var.region
   zone              = var.zone
-  subnet_self_link  = module.network.subnet_self_link
+  subnet_self_link  = data.google_compute_subnetwork.existing_subnet.self_link
   machine_type      = var.instance_type
   disk_size_gb      = var.disk_size_gb
   network_tags      = ["erp-host"]

@@ -1,0 +1,175 @@
+name: Deploy ERPNext to GCP
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  GCP_PROJECT_ID: freshfield-ai-ops-dev
+  GCP_REGION: us-west1
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Test Infrastructure
+      run: |
+        echo "Testing Terraform configuration..."
+        cd infra/terraform/environments/dev
+        terraform init -backend=false
+        terraform validate
+        terraform plan -out=tfplan
+
+  deploy-dev:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
+    environment: development
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.6.6
+    
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+    
+    - name: Deploy to Dev
+      run: |
+        cd infra/terraform/environments/dev
+        terraform init -backend-config="bucket=freshfield-erpnext-tfstate" -backend-config="prefix=env/dev"
+        terraform apply -auto-approve
+    
+    - name: Deploy ERPNext to Dev
+      run: |
+        # Get dev IP
+        DEV_IP=$(cd infra/terraform/environments/dev && terraform output -raw ip_address)
+        
+        # Setup SSH key
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ssh_key
+        chmod 600 ssh_key
+        
+        # Deploy ERPNext
+        scp -i ssh_key -o StrictHostKeyChecking=no frappe_docker/pwd.yml frappe_docker/.env ubuntu@$DEV_IP:/opt/erpnext/
+        ssh -i ssh_key ubuntu@$DEV_IP "cd /opt/erpnext && docker compose -f pwd.yml up -d"
+        
+        # Cleanup
+        rm ssh_key
+
+  deploy-staging:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: staging
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.6.6
+    
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+    
+    - name: Deploy to Staging
+      run: |
+        cd infra/terraform/environments/staging
+        terraform init -backend-config="bucket=freshfield-erpnext-tfstate" -backend-config="prefix=env/staging"
+        terraform apply -auto-approve
+    
+    - name: Deploy ERPNext to Staging
+      run: |
+        # Get staging IP
+        STAGING_IP=$(cd infra/terraform/environments/staging && terraform output -raw ip_address)
+        
+        # Setup SSH key
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ssh_key
+        chmod 600 ssh_key
+        
+        # Deploy ERPNext
+        scp -i ssh_key -o StrictHostKeyChecking=no frappe_docker/pwd.yml frappe_docker/.env ubuntu@$STAGING_IP:/opt/erpnext/
+        ssh -i ssh_key ubuntu@$STAGING_IP "cd /opt/erpnext && docker compose -f pwd.yml up -d"
+        
+        # Cleanup
+        rm ssh_key
+
+  deploy-prod:
+    needs: [test, deploy-staging]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.6.6
+    
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+    
+    - name: Deploy to Production
+      run: |
+        cd infra/terraform/environments/prod
+        terraform init -backend-config="bucket=freshfield-erpnext-tfstate" -backend-config="prefix=env/prod"
+        terraform apply -auto-approve
+    
+    - name: Deploy ERPNext to Production
+      run: |
+        # Get prod IP
+        PROD_IP=$(cd infra/terraform/environments/prod && terraform output -raw ip_address)
+        
+        # Setup SSH key
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ssh_key
+        chmod 600 ssh_key
+        
+        # Deploy ERPNext
+        scp -i ssh_key -o StrictHostKeyChecking=no frappe_docker/pwd.yml frappe_docker/.env ubuntu@$PROD_IP:/opt/erpnext/
+        ssh -i ssh_key ubuntu@$PROD_IP "cd /opt/erpnext && docker compose -f pwd.yml up -d"
+        
+        # Cleanup
+        rm ssh_key
+
+  health-check:
+    needs: [deploy-dev, deploy-staging, deploy-prod]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Health Check Dev
+      if: needs.deploy-dev.result == 'success'
+      run: |
+        DEV_IP=$(cd infra/terraform/environments/dev && terraform output -raw ip_address)
+        curl -f http://$DEV_IP:8080 || exit 1
+        echo "✅ Dev environment healthy"
+    
+    - name: Health Check Staging
+      if: needs.deploy-staging.result == 'success'
+      run: |
+        STAGING_IP=$(cd infra/terraform/environments/staging && terraform output -raw ip_address)
+        curl -f http://$STAGING_IP:8080 || exit 1
+        echo "✅ Staging environment healthy"
+    
+    - name: Health Check Production
+      if: needs.deploy-prod.result == 'success'
+      run: |
+        PROD_IP=$(cd infra/terraform/environments/prod && terraform output -raw ip_address)
+        curl -f http://$PROD_IP:8080 || exit 1
+        echo "✅ Production environment healthy"
